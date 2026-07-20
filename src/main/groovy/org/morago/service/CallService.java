@@ -3,16 +3,16 @@ package org.morago.service;
 import lombok.RequiredArgsConstructor;
 import org.morago.dto.call.CallRequest;
 import org.morago.dto.call.CallResponse;
-import org.morago.model.Call;
-import org.morago.model.CallStatus;
-import org.morago.model.TranslatorProfile;
-import org.morago.model.User;
+import org.morago.model.*;
 import org.morago.repository.CallRepository;
+import org.morago.repository.PaymentRepository;
 import org.morago.repository.TranslatorProfileRepository;
 import org.morago.repository.UserRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -25,6 +25,9 @@ public class CallService {
     private final UserRepository userRepository;
 
     private final TranslatorProfileRepository translatorProfileRepository;
+
+    private static final BigDecimal PRICE_PER_MINUTE = BigDecimal.valueOf(100);
+    private final PaymentRepository paymentRepository;
 
 
     public CallResponse create(
@@ -89,6 +92,7 @@ public class CallService {
 
     }
 
+    @Transactional
     public CallResponse finish(Long id) {
 
         Call call = callRepository.findById(id)
@@ -103,6 +107,10 @@ public class CallService {
             throw new RuntimeException("Call already cancelled");
         }
 
+    if (call.getStatus() == CallStatus.CREATED) {
+        throw new RuntimeException("Call is not started");
+    }
+
         LocalDateTime now = LocalDateTime.now();
 
         call.setStatus(CallStatus.FINISHED);
@@ -110,6 +118,43 @@ public class CallService {
         call.setEndTime(now);
 
         call.setUpdatedAt(now);
+
+        long minutes = Duration.between(call.getStartTime(), now).toMinutes();
+
+        if (minutes < 0) {
+            throw new RuntimeException("Invalid call duration");
+        }
+
+        BigDecimal cost = BigDecimal.valueOf(minutes).multiply(PRICE_PER_MINUTE);
+
+        call.setCost(cost);
+
+        User client = call.getClient();
+        User translator = call.getTranslator().getUser();
+
+        if (client.getBalance().compareTo(cost) < 0) {
+            throw new RuntimeException("Not enough balance");
+        }
+
+        client.setBalance(
+                client.getBalance().subtract(cost)
+        );
+
+        translator.setBalance(
+                translator.getBalance().add(cost)
+        );
+
+        userRepository.save(client);
+        userRepository.save(translator);
+
+        Payment payment = new Payment();
+        payment.setClient(client);
+        payment.setTranslator(translator);
+        payment.setCall(call);
+        payment.setAmount(cost);
+        payment.setCreatedAt(now);
+        paymentRepository.save(payment);
+
 
         Call savedCall = callRepository.save(call);
 
