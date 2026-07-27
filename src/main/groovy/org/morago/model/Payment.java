@@ -18,15 +18,17 @@ public class Payment {
     private Long id;
 
     @ManyToOne
-    private User client;
+    @JoinColumn(name = "user_id")
+    private User user;
 
     @ManyToOne
-    private User translator;
-
-    @OneToOne
+    @JoinColumn(name = "call_id")
     private Call call;
 
     private BigDecimal amount;
+
+    @Enumerated(EnumType.STRING)
+    private PaymentType type;
 
     private LocalDateTime createdAt;
 
