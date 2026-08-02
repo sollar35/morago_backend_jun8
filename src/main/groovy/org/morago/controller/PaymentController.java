@@ -7,10 +7,9 @@ import org.morago.dto.payment.PaymentResponse;
 import org.morago.service.PaymentService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/payments")
@@ -33,4 +32,23 @@ public class PaymentController {
         );
     }
 
+    @GetMapping("/my")
+    public ResponseEntity<List<PaymentResponse>> getMyPayments(
+            Authentication authentication
+    ) {
+
+        return ResponseEntity.ok(
+                paymentService.getMyPayments(authentication.getName())
+        );
+    }
+
+    @PostMapping("/withdraw")
+    public ResponseEntity<PaymentResponse> withdraw(
+            Authentication authentication,
+            @Valid @RequestBody PaymentRequest request
+    ) {
+        return ResponseEntity.ok(
+                paymentService.withdraw(authentication.getName(), request)
+        );
+    }
 }

@@ -12,7 +12,7 @@ import java.math.BigDecimal;
 public class PaymentRequest {
 
     @NotNull
-    @DecimalMin("0.01")
+    @DecimalMin(value = "0.01", message = "Amount must be positive")
     private BigDecimal amount;
 
 }

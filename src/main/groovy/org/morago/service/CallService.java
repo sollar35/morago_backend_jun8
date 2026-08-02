@@ -147,13 +147,23 @@ public class CallService {
         userRepository.save(client);
         userRepository.save(translator);
 
-        Payment payment = new Payment();
-        payment.setClient(client);
-        payment.setTranslator(translator);
-        payment.setCall(call);
-        payment.setAmount(cost);
-        payment.setCreatedAt(now);
-        paymentRepository.save(payment);
+        Payment clientPayment = new Payment();
+        clientPayment.setUser(client);
+        clientPayment.setCall(call);
+        clientPayment.setAmount(cost.negate());
+        clientPayment.setType(PaymentType.CALL_PAYMENT);
+        clientPayment.setCreatedAt(now);
+
+        paymentRepository.save(clientPayment);
+
+        Payment translatorPayment = new Payment();
+        translatorPayment.setUser(translator);
+        translatorPayment.setCall(call);
+        translatorPayment.setAmount(cost);
+        translatorPayment.setType(PaymentType.CALL_PAYMENT);
+        translatorPayment.setCreatedAt(now);
+
+        paymentRepository.save(translatorPayment);
 
 
         Call savedCall = callRepository.save(call);
