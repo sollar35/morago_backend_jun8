@@ -3,6 +3,9 @@ package org.morago.service;
 import lombok.RequiredArgsConstructor;
 import org.morago.dto.payment.PaymentRequest;
 import org.morago.dto.payment.PaymentResponse;
+import org.morago.exception.UserNotFoundException;
+import org.morago.exception.InsufficientBalanceException;
+import org.morago.model.Call;
 import org.morago.model.Payment;
 import org.morago.model.PaymentType;
 import org.morago.model.User;
@@ -11,7 +14,7 @@ import org.morago.repository.UserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import javax.naming.InsufficientResourcesException;
+
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -26,7 +29,7 @@ public class PaymentService {
     private User getCurrentUser(String email) {
         return userRepository.findByEmail(email)
                 .orElseThrow(() ->
-                        new RuntimeException("User not found"));
+                        new UserNotFoundException("User not found"));
     }
 
     @Transactional
@@ -84,7 +87,7 @@ public class PaymentService {
         User user = getCurrentUser(email);
 
         if (user.getBalance().compareTo(request.getAmount()) < 0) {
-            throw new InsufficientBalanceException("InsufficientBalance balance");
+            throw new InsufficientBalanceException("Insufficient balance");
         }
 
         user.setBalance(user.getBalance().subtract(request.getAmount()));
@@ -104,21 +107,21 @@ public class PaymentService {
         );
     }
 
-    @Transactional
-    public void chargeForCall(User user, BigDecimal amount) {
-        if (user.getBalance().compareTo(amount) < 0) {
-            throw new InsufficientBalanceException("InsufficientBalance for call");
-        }
-        user.setBalance(user.getBalance().subtract(amount));
-        userRepository.save(user);
-
-        Payment payment = new Payment();
-        payment.setUser(user);
-        payment.setAmount(amount);
-        payment.setType(PaymentType.CALL_PAYMENT);
-        payment.setCreatedAt(LocalDateTime.now());
-        paymentRepository.save(payment);
-    }
+//    @Transactional
+//    public void chargeForCall(User user, BigDecimal amount) {
+//        if (user.getBalance().compareTo(amount) < 0) {
+//            throw new InsufficientBalanceException("Insufficient Balance for call");
+//        }
+//        user.setBalance(user.getBalance().subtract(amount));
+//        userRepository.save(user);
+//
+//        Payment payment = new Payment();
+//        payment.setUser(user);
+//        payment.setAmount(amount);
+//        payment.setType(PaymentType.CALL_PAYMENT);
+//        payment.setCreatedAt(LocalDateTime.now());
+//        paymentRepository.save(payment);
+//    }
 
     @Transactional
     public void refund(User user, BigDecimal amount) {
@@ -131,5 +134,37 @@ public class PaymentService {
         payment.setType(PaymentType.REFUND);
         payment.setCreatedAt(LocalDateTime.now());
         paymentRepository.save(payment);
+    }
+
+    @Transactional
+    public void payForCall(User client, User translator, BigDecimal amount, Call call) {
+
+        if (client.getBalance().compareTo(amount) < 0) {
+            throw new InsufficientBalanceException("Insufficient Balance for call");
+        }
+
+        client.setBalance(client.getBalance().subtract(amount));
+        translator.setBalance(translator.getBalance().add(amount));
+
+        userRepository.save(client);
+        userRepository.save(translator);
+
+        LocalDateTime now = LocalDateTime.now();
+
+        Payment clientPayment = new Payment();
+        clientPayment.setUser(client);
+        clientPayment.setCall(call);
+        clientPayment.setAmount(amount.negate());
+        clientPayment.setType(PaymentType.CALL_PAYMENT);
+        clientPayment.setCreatedAt(now);
+        paymentRepository.save(clientPayment);
+
+        Payment translatorPayment = new Payment();
+        translatorPayment.setUser(translator);
+        translatorPayment.setCall(call);
+        translatorPayment.setAmount(amount);
+        translatorPayment.setType(PaymentType.CALL_PAYMENT);
+        translatorPayment.setCreatedAt(now);
+        paymentRepository.save(translatorPayment);
     }
 }

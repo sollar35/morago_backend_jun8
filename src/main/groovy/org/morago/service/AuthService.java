@@ -18,6 +18,7 @@ import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Set;
 
@@ -45,6 +46,8 @@ public class AuthService {
         user.setEmail(request.email());
 
         user.setPassword(passwordEncoder.encode(request.password()));
+
+        user.setBalance(BigDecimal.ZERO);
 
         Role userRole = roleRepository.findByName(RoleName.USER)
                         .orElseThrow(

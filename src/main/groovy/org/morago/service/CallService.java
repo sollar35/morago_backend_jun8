@@ -3,9 +3,13 @@ package org.morago.service;
 import lombok.RequiredArgsConstructor;
 import org.morago.dto.call.CallRequest;
 import org.morago.dto.call.CallResponse;
+import org.morago.exception.CallNotFoundException;
+import org.morago.exception.InvalidCallStateException;
+import org.morago.exception.TranslatorNotFoundException;
+import org.morago.exception.UserNotFoundException;
 import org.morago.model.*;
 import org.morago.repository.CallRepository;
-import org.morago.repository.PaymentRepository;
+
 import org.morago.repository.TranslatorProfileRepository;
 import org.morago.repository.UserRepository;
 import org.springframework.stereotype.Service;
@@ -27,7 +31,8 @@ public class CallService {
     private final TranslatorProfileRepository translatorProfileRepository;
 
     private static final BigDecimal PRICE_PER_MINUTE = BigDecimal.valueOf(100);
-    private final PaymentRepository paymentRepository;
+
+    private final PaymentService paymentService;
 
 
     public CallResponse create(
@@ -37,11 +42,11 @@ public class CallService {
 
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() ->
-                        new RuntimeException("User not found"));
+                        new UserNotFoundException("User not found"));
 
         TranslatorProfile translator = translatorProfileRepository.findById(request.getTranslatorId())
                 .orElseThrow(() ->
-                        new RuntimeException("Translator not found"));
+                        new TranslatorNotFoundException("Translator not found"));
 
         Call call = new Call();
 
@@ -97,18 +102,18 @@ public class CallService {
 
         Call call = callRepository.findById(id)
                 .orElseThrow(() ->
-                        new RuntimeException("Call not found"));
+                        new CallNotFoundException("Call not found"));
 
         if (call.getStatus() == CallStatus.FINISHED) {
-            throw new RuntimeException("Call already finished");
+            throw new InvalidCallStateException("Call already finished");
         }
 
         if (call.getStatus() == CallStatus.CANCELLED) {
-            throw new RuntimeException("Call already cancelled");
+            throw new InvalidCallStateException("Call already cancelled");
         }
 
     if (call.getStatus() == CallStatus.CREATED) {
-        throw new RuntimeException("Call is not started");
+        throw new InvalidCallStateException("Call is not started");
     }
 
         LocalDateTime now = LocalDateTime.now();
@@ -122,7 +127,7 @@ public class CallService {
         long minutes = Duration.between(call.getStartTime(), now).toMinutes();
 
         if (minutes < 0) {
-            throw new RuntimeException("Invalid call duration");
+            throw new InvalidCallStateException("Invalid call duration");
         }
 
         BigDecimal cost = BigDecimal.valueOf(minutes).multiply(PRICE_PER_MINUTE);
@@ -132,38 +137,7 @@ public class CallService {
         User client = call.getClient();
         User translator = call.getTranslator().getUser();
 
-        if (client.getBalance().compareTo(cost) < 0) {
-            throw new RuntimeException("Not enough balance");
-        }
-
-        client.setBalance(
-                client.getBalance().subtract(cost)
-        );
-
-        translator.setBalance(
-                translator.getBalance().add(cost)
-        );
-
-        userRepository.save(client);
-        userRepository.save(translator);
-
-        Payment clientPayment = new Payment();
-        clientPayment.setUser(client);
-        clientPayment.setCall(call);
-        clientPayment.setAmount(cost.negate());
-        clientPayment.setType(PaymentType.CALL_PAYMENT);
-        clientPayment.setCreatedAt(now);
-
-        paymentRepository.save(clientPayment);
-
-        Payment translatorPayment = new Payment();
-        translatorPayment.setUser(translator);
-        translatorPayment.setCall(call);
-        translatorPayment.setAmount(cost);
-        translatorPayment.setType(PaymentType.CALL_PAYMENT);
-        translatorPayment.setCreatedAt(now);
-
-        paymentRepository.save(translatorPayment);
+        paymentService.payForCall(client, translator, cost, call);
 
 
         Call savedCall = callRepository.save(call);
@@ -186,14 +160,14 @@ public class CallService {
 
         Call call = callRepository.findById(id)
                 .orElseThrow(() ->
-                        new RuntimeException("Call not found"));
+                        new CallNotFoundException("Call not found"));
 
         if (call.getStatus() == CallStatus.FINISHED) {
-            throw new RuntimeException("Call already finished");
+            throw new InvalidCallStateException("Call already finished");
         }
 
         if (call.getStatus() == CallStatus.CANCELLED) {
-            throw new RuntimeException("Call already cancelled");
+            throw new InvalidCallStateException("Call already cancelled");
         }
 
         LocalDateTime now = LocalDateTime.now();
@@ -223,18 +197,18 @@ public class CallService {
     public CallResponse start(Long id) {
 
         Call call = callRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Call not found"));
+                .orElseThrow(() -> new CallNotFoundException("Call not found"));
 
         if (call.getStatus() == CallStatus.IN_PROGRESS) {
-            throw new RuntimeException("Call already started");
+            throw new InvalidCallStateException("Call already started");
         }
 
         if (call.getStatus() == CallStatus.FINISHED) {
-            throw new RuntimeException("Call already finished");
+            throw new InvalidCallStateException("Call already finished");
         }
 
         if (call.getStatus() == CallStatus.CANCELLED) {
-            throw new RuntimeException("Call already cancelled");
+            throw new InvalidCallStateException("Call already cancelled");
         }
 
         LocalDateTime now = LocalDateTime.now();
