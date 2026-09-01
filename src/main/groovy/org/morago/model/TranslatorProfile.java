@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.Set;
@@ -25,8 +26,11 @@ public class TranslatorProfile {
 
     private boolean online = false;
 
-    @Column(name = "hourly_rate")
-    private Double hourlyRate;
+    @Column(name = "hourly_rate", precision = 19, scale = 2)
+    private BigDecimal hourlyRate;
+
+    @Enumerated(EnumType.STRING)
+    private VerificationStatus status = VerificationStatus.PENDING;
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;
@@ -34,6 +38,13 @@ public class TranslatorProfile {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
+    @Column(name = "verified_at")
+    private LocalDateTime verifiedAt;
+
+    @Column(name = "verified_by")
+    private String verifiedBy;
+
+    private String reason;
     @OneToOne
     @JoinColumn(name = "user_id")
     private User user;

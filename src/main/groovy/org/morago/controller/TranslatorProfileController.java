@@ -2,6 +2,7 @@ package org.morago.controller;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.morago.dto.translatorprofile.HourlyRateRequest;
 import org.morago.dto.translatorprofile.TranslatorProfileRequest;
 import org.morago.dto.translatorprofile.TranslatorProfileResponse;
 import org.morago.service.TranslatorProfileService;
@@ -19,6 +20,7 @@ public class TranslatorProfileController {
     private final TranslatorProfileService translatorProfileService;
 
     @PostMapping
+    @PreAuthorize("hasRole('USER')")
     public ResponseEntity<TranslatorProfileResponse> create(
             Authentication authentication,
             @Valid @RequestBody TranslatorProfileRequest request) {
@@ -32,12 +34,26 @@ public class TranslatorProfileController {
     }
 
     @GetMapping("/me")
+    @PreAuthorize("hasRole('USER') or hasRole('TRANSLATOR')")
     public ResponseEntity<TranslatorProfileResponse> getMyProfile(
             Authentication authentication
     ) {
 
         return ResponseEntity.ok(
                 translatorProfileService.getMyProfile(authentication)
+        );
+    }
+
+    @PatchMapping("/hourly-rate")
+    public ResponseEntity<TranslatorProfileResponse> updateHourlyRate(
+            Authentication authentication,
+            @Valid @RequestBody HourlyRateRequest request
+            ) {
+        return ResponseEntity.ok(
+                translatorProfileService.updateHourlyRate(
+                        authentication.getName(),
+                        request.hourlyRate()
+                )
         );
     }
 }
