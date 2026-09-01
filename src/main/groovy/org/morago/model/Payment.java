@@ -1,36 +1,35 @@
 package org.morago.model;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
 import lombok.Getter;
-import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
+@Entity
+@Table(name = "payments")
 @Getter
 @Setter
-@NoArgsConstructor
-@AllArgsConstructor
-@Entity
-@Table(name = "reviews")
-public class Review {
+public class Payment {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @OneToOne
+    @ManyToOne
+    @JoinColumn(name = "user_id")
+    private User user;
+
+    @ManyToOne
     @JoinColumn(name = "call_id")
     private Call call;
 
-    private Integer rating;
+    private BigDecimal amount;
 
-    @Column(length = 1000)
-    private String comment;
+    @Enumerated(EnumType.STRING)
+    private PaymentType type;
 
     private LocalDateTime createdAt;
-
-    private LocalDateTime updatedAt;
 
 }

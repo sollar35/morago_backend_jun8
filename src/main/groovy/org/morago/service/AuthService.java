@@ -1,5 +1,6 @@
 package org.morago.service;
 
+import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.morago.dto.auth.JwtResponse;
 import org.morago.dto.auth.LoginRequest;
@@ -17,6 +18,7 @@ import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Set;
 
@@ -45,6 +47,8 @@ public class AuthService {
 
         user.setPassword(passwordEncoder.encode(request.password()));
 
+        user.setBalance(BigDecimal.ZERO);
+
         Role userRole = roleRepository.findByName(RoleName.USER)
                         .orElseThrow(
                                 () -> new RuntimeException("Role USER not found")
@@ -55,6 +59,7 @@ public class AuthService {
         userRepository.save(user);
     }
 
+    @Transactional
     public JwtResponse login(LoginRequest request) {
 
         User user = userRepository.findByEmail(request.email())
@@ -90,6 +95,7 @@ public class AuthService {
 
     }
 
+    @Transactional
     public JwtResponse refresh(RefreshRequest request) {
 
         RefreshToken refreshTokenEntity = refreshTokenRepository.findByToken(request.refreshToken())
@@ -129,6 +135,7 @@ public class AuthService {
         return new JwtResponse(accessToken, refreshToken);
     }
 
+    @Transactional
     public void logout(String email) {
 
         User user = userRepository.findByEmail(email).orElseThrow(
